@@ -6,6 +6,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
 
 import jakarta.validation.constraints.NotEmpty;
+import java.util.List;
 import java.util.function.Consumer;
 
 @Service
@@ -48,6 +49,29 @@ public class OwnerService {
         ownerRepository.save(owner);
 
         return owner;
+    }
+
+    /**
+     * Find all Owner names who have pets of a specific type and have used veterinary services
+     * from vets with a particular specialty.
+     *
+     * @param petTypeName the name of the pet type to filter by (e.g., "Cat", "Dog")
+     * @param specialtyName the name of the specialty to filter by (e.g., "surgery", "dentistry")
+     * @return a list of owner full names
+     * @throws IllegalArgumentException if either parameter is null or empty
+     */
+    @Transactional(readOnly = true)
+    public List<String> findOwnersByPetTypeAndVetSpecialty(
+            String petTypeName, String specialtyName) {
+        if (petTypeName == null || petTypeName.trim().isEmpty()) {
+            throw new IllegalArgumentException("Pet type name is required");
+        }
+        if (specialtyName == null || specialtyName.trim().isEmpty()) {
+            throw new IllegalArgumentException("Specialty name is required");
+        }
+        
+        return ownerRepository.findOwnerNamesByPetTypeAndVetSpecialty(
+            petTypeName.trim(), specialtyName.trim());
     }
 
     private void setIfGiven(String value, Consumer<String> s) {
