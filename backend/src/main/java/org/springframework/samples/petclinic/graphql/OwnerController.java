@@ -17,6 +17,7 @@ import org.springframework.stereotype.Controller;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import static org.springframework.samples.petclinic.model.OwnerFilter.NO_FILTER;
 
@@ -95,5 +96,28 @@ public class OwnerController {
     public Optional<Owner> owner(DataFetchingEnvironment env) {
         int id = env.getArgument("id");
         return ownerRepository.findById(id);
+    }
+
+    /**
+     * Find all owner names who have pets of a specific type and have used veterinary services
+     * from vets with a particular specialty.
+     *
+     * @param petTypeName the name of the pet type to filter by (e.g., "Cat", "Dog")
+     * @param specialtyName the name of the specialty to filter by (e.g., "surgery", "dentistry")
+     * @return a list of OwnerNameResponse objects containing owner full names
+     */
+    @QueryMapping
+    public List<OwnerNameResponse> findOwnersByPetTypeAndVetSpecialty(
+            @Argument String petTypeName,
+            @Argument String specialtyName) {
+
+        log.debug("Finding owners with pet type '{}' and vet specialty '{}'", petTypeName, specialtyName);
+
+        List<Object[]> results = ownerRepository.findOwnersByPetTypeAndVetSpecialty(
+            petTypeName, specialtyName);
+
+        return results.stream()
+            .map(row -> new OwnerNameResponse((String) row[0], (String) row[1]))
+            .collect(Collectors.toList());
     }
 }

@@ -41,6 +41,7 @@ type AddVisitPayload {
     visit: Visit!
 }
 
+
 """
 For motivation of how the Mutation look see:
 https://dev-blog.apollodata.com/designing-graphql-mutations-e09de826ed97
@@ -123,6 +124,12 @@ type PageInfo {
     endCursor: String
 }
 
+"Response type for owner name queries"
+type OwnerNameResponse {
+    "The full name of the owner (firstName + lastName)"
+    fullName: String!
+}
+
 " The Query type provides all entry points to the PetClinic GraphQL schema"
 type Query {
     me: User!
@@ -164,6 +171,17 @@ type Query {
     vet(id: Int!): Vet
     " Return all known veterinaries"
     vets(first:Int, after:String, last:Int, before:String): VetConnection!
+    
+    """
+    Find all owner names who have pets of a specific type 
+    and have used veterinary services from vets with a particular specialty
+    """
+    findOwnersByPetTypeAndVetSpecialty(
+        "The pet type name to filter by (e.g., 'Cat', 'Dog')"
+        petTypeName: String!
+        "The veterinary specialty name to filter by (e.g., 'surgery', 'dentistry')"
+        specialtyName: String!
+    ): [OwnerNameResponse!]!
 }
 
 type RemoveSpecialtyPayload {
