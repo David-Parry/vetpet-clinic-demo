@@ -96,4 +96,24 @@ public class OwnerController {
         int id = env.getArgument("id");
         return ownerRepository.findById(id);
     }
+
+    /**
+     * GraphQL query to find all owner names who have pets of a specific type 
+     * that have been treated by vets with a particular specialty.
+     * 
+     * @param petTypeName the name of the pet type to filter by
+     * @param specialtyName the name of the vet specialty to filter by
+     * @return a list of owner full names (firstName + lastName)
+     */
+    @QueryMapping
+    public List<String> ownersByPetTypeAndVetSpecialty(
+            @Argument String petTypeName,
+            @Argument String specialtyName) {
+        log.debug("Finding owners with pet type '{}' and vet specialty '{}'", 
+            petTypeName, specialtyName);
+        return ownerService.findOwnerNamesByPetTypeAndVetSpecialty(
+            petTypeName, 
+            specialtyName
+        );
+    }
 }

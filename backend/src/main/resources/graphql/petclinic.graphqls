@@ -164,6 +164,14 @@ type Query {
     vet(id: Int!): Vet
     " Return all known veterinaries"
     vets(first:Int, after:String, last:Int, before:String): VetConnection!
+    """
+    Find all owner names who have pets of a specific type
+    that have been treated by vets with a particular specialty
+    """
+    ownersByPetTypeAndVetSpecialty(
+        petTypeName: String!
+        specialtyName: String!
+    ): [String!]!
 }
 
 type RemoveSpecialtyPayload {
