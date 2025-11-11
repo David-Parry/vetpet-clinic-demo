@@ -96,4 +96,32 @@ public class OwnerController {
         int id = env.getArgument("id");
         return ownerRepository.findById(id);
     }
+
+    /**
+     * Find all Owner names who have pets of a specific type and have used veterinary services
+     * from vets with a particular specialty.
+     *
+     * @param petTypeName the name of the pet type to filter by
+     * @param specialtyName the name of the vet specialty to filter by
+     * @return a distinct list of owner full names
+     */
+    @QueryMapping
+    public List<String> ownersByPetTypeAndVetSpecialty(
+        @Argument String petTypeName,
+        @Argument String specialtyName
+    ) {
+        if (petTypeName == null || petTypeName.trim().isEmpty()) {
+            throw new IllegalArgumentException("petTypeName is required and cannot be empty");
+        }
+        if (specialtyName == null || specialtyName.trim().isEmpty()) {
+            throw new IllegalArgumentException("specialtyName is required and cannot be empty");
+        }
+        
+        log.info("Finding owners with pet type '{}' and vet specialty '{}'", petTypeName, specialtyName);
+        
+        return ownerRepository.findOwnerNamesByPetTypeAndVetSpecialty(
+            petTypeName.trim(),
+            specialtyName.trim()
+        );
+    }
 }
