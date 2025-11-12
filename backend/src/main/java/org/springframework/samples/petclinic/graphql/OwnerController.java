@@ -15,6 +15,7 @@ import org.springframework.samples.petclinic.model.OwnerService;
 import org.springframework.samples.petclinic.repository.OwnerRepository;
 import org.springframework.stereotype.Controller;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -95,5 +96,38 @@ public class OwnerController {
     public Optional<Owner> owner(DataFetchingEnvironment env) {
         int id = env.getArgument("id");
         return ownerRepository.findById(id);
+    }
+
+    /**
+     * Find all Owner names who have pets of a specific type and have used veterinary services
+     * from vets with a particular specialty.
+     *
+     * @param petTypeName the name of the pet type to filter by
+     * @param specialtyName the name of the vet specialty to filter by
+     * @return a list of distinct owner full names
+     */
+    @QueryMapping
+    public List<String> ownersByPetTypeAndVetSpecialty(
+            @Argument String petTypeName,
+            @Argument String specialtyName) {
+        
+        // Input validation
+        if (petTypeName == null || petTypeName.trim().isEmpty()) {
+            throw new IllegalArgumentException("petTypeName is required");
+        }
+        if (specialtyName == null || specialtyName.trim().isEmpty()) {
+            throw new IllegalArgumentException("specialtyName is required");
+        }
+        
+        log.debug("Finding owners with petType='{}' and vetSpecialty='{}'", petTypeName, specialtyName);
+        
+        // Call repository method
+        List<String> ownerNames = ownerRepository.findOwnerNamesByPetTypeAndVetSpecialty(
+            petTypeName.trim(),
+            specialtyName.trim()
+        );
+        
+        // Return empty list if no results (GraphQL non-null list)
+        return ownerNames != null ? ownerNames : new ArrayList<>();
     }
 }

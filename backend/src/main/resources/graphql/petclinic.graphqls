@@ -41,6 +41,7 @@ type AddVisitPayload {
     visit: Visit!
 }
 
+
 """
 For motivation of how the Mutation look see:
 https://dev-blog.apollodata.com/designing-graphql-mutations-e09de826ed97
@@ -164,6 +165,15 @@ type Query {
     vet(id: Int!): Vet
     " Return all known veterinaries"
     vets(first:Int, after:String, last:Int, before:String): VetConnection!
+    
+    """
+    Find all Owner names who have pets of a specific type 
+    and have used veterinary services from vets with a particular specialty
+    """
+    ownersByPetTypeAndVetSpecialty(
+        petTypeName: String!
+        specialtyName: String!
+    ): [String!]!
 }
 
 type RemoveSpecialtyPayload {
