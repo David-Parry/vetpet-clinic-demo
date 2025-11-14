@@ -1,0 +1,49 @@
+# Snyk (https://snyk.io) policy file
+
+version: v1.25.0
+
+# Ignore specific vulnerabilities
+ignore:
+  # Development dependencies - low risk
+  'SNYK-JS-ESLINT-*':
+    - '*':
+        reason: 'Development dependency only, not in production'
+        expires: '2025-12-14T00:00:00.000Z'
+  
+  'SNYK-JS-TYPESCRIPT-*':
+    - '*':
+        reason: 'Development dependency only, not in production'
+        expires: '2025-12-14T00:00:00.000Z'
+
+# Patch specific vulnerabilities
+patch: {}
+
+# Exclude paths from scanning
+exclude:
+  global:
+    - node_modules/**
+    - target/**
+    - dist/**
+    - build/**
+    - .git/**
+    - coverage/**
+
+# Language settings
+language-settings:
+  java:
+    # Maven settings
+    maven:
+      # Scan all modules
+      scanAllModules: true
+  
+  javascript:
+    # npm/pnpm settings
+    ignoreDevDependencies: false
+    # Scan lock files
+    scanLockFiles: true
+
+# Severity threshold
+failOn: high
+
+# Organization settings (update with your Snyk org)
+# org: your-org-name
