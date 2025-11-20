@@ -90,6 +90,7 @@
         <dependency>
             <groupId>org.springframework.graphql</groupId>
             <artifactId>spring-graphql-test</artifactId>
+            <version>1.3.6</version>
             <scope>test</scope>
         </dependency>
         <dependency>
