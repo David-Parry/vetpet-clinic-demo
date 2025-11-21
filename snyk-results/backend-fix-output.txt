@@ -1,0 +1,11 @@
+
+ ERROR   Unspecified Error (SNYK-CLI-0000)
+                                                                                        
+           `snyk fix` is not supported.                                                 
+           See documentation on how to enable this beta feature:                        
+           https://docs.snyk.io/snyk-cli/fix-vulnerabilities-from-the-cli/automatic-    
+           remediation-with-snyk-fix#enabling-snyk-fix                                  
+
+Docs:    https://docs.snyk.io/scan-with-snyk/error-catalog#snyk-cli-0000 
+                                                                         
+ID:      urn:snyk:interaction:7793eb59-306e-4c91-b0ad-6f6253487d12 
