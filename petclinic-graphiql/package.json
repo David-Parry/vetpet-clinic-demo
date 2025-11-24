@@ -11,10 +11,12 @@
     "preview": "tsc && vite build && vite preview"
   },
   "dependencies": {
+    "@babel/runtime": "^7.26.10",
     "@graphiql/toolkit": "^0.9.1",
     "graphiql": "^3.0.6",
     "graphql": "^16.8.1",
     "graphql-ws": "^5.14.1",
+    "markdown-it": "^13.0.2",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
   },
