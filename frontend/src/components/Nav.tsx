@@ -7,6 +7,7 @@ import { useLogout } from "@/use-logout";
 import { useCurrentUser } from "@/use-current-user-fullname";
 import clsx from "clsx";
 import { useEffect, useState } from "react";
+import { fetchProfileImageAsDataUrl } from "@/utils/profileImage";
 
 function NavLogo() {
   return (
@@ -172,37 +173,33 @@ function ProfileImage({ url, alt }: ProfileImageProps) {
   const [imageData, setImageData] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!token) {
-      setImageData(null);
-      return;
-    }
-    const reader = new FileReader();
+    let cancelled = false;
 
-    fetch(url, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    })
-      .then((res) => res.blob())
-      .then(
-        (blob) =>
-          new Promise((resolve, reject) => {
-            reader.onload = resolve;
-            reader.onerror = reject;
-            reader.readAsDataURL(blob);
-          }),
-      )
-      .then((_) => reader.result)
-      .then((imageData) =>
-        typeof imageData === "string"
-          ? setImageData(imageData)
-          : setImageData(null),
-      );
+    async function loadImage() {
+      if (!token) {
+        setImageData(null);
+        return;
+      }
+
+      // Use secure helper function with validation
+      const safeDataUrl = await fetchProfileImageAsDataUrl({ url, token });
+      
+      if (!cancelled) {
+        setImageData(safeDataUrl);
+      }
+    }
+
+    loadImage();
+
+    // Cleanup function to prevent state updates after unmount
+    return () => {
+      cancelled = true;
+    };
   }, [token, url]);
 
-  if (imageData) {
-    return <img src={imageData} className="h-8 w-8 rounded-full" alt={alt} />;
+  if (!imageData) {
+    return null; // Gracefully fall back to no image
   }
 
-  return null;
+  return <img src={imageData} className="h-8 w-8 rounded-full" alt={alt} />;
 }
