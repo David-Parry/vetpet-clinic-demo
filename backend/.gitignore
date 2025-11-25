@@ -1,1 +1,8 @@
 target/
+# Security - Never commit keys or secrets
+*.pem
+*.key
+.env
+.env.local
+.env.*.local
+keys/

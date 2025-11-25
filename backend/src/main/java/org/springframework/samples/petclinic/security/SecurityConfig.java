@@ -8,6 +8,7 @@ import com.nimbusds.jose.proc.SecurityContext;
 import jakarta.servlet.DispatcherType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.Environment;
@@ -25,6 +26,10 @@ import org.springframework.security.config.annotation.web.configurers.oauth2.ser
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.DelegatingPasswordEncoder;
+import org.springframework.security.crypto.password.NoOpPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
@@ -37,6 +42,9 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * Configures security for PetClinic. Ensures that all requests to /graphql are secured.
@@ -50,14 +58,32 @@ public class SecurityConfig {
 
     private final RSAKey rsaKey;
 
+    @Value("${cors.allowed-origins:http://localhost:3000}")
+    private String allowedOrigins;
+
     public SecurityConfig(RSAKeyProvider RSAKeyProvider) {
         this.rsaKey = RSAKeyProvider.getRsaKey();
     }
 
     @Bean
-    public AuthenticationManager authManager(UserDetailsService userDetailsService) {
+    public PasswordEncoder passwordEncoder() {
+        // Support both BCrypt (preferred) and NoOp (for backward compatibility during migration)
+        Map<String, PasswordEncoder> encoders = new HashMap<>();
+        encoders.put("bcrypt", new BCryptPasswordEncoder());
+        encoders.put("noop", NoOpPasswordEncoder.getInstance());
+        
+        DelegatingPasswordEncoder delegatingPasswordEncoder = new DelegatingPasswordEncoder("bcrypt", encoders);
+        // Allow NoOp for backward compatibility during migration
+        delegatingPasswordEncoder.setDefaultPasswordEncoderForMatches(NoOpPasswordEncoder.getInstance());
+        
+        return delegatingPasswordEncoder;
+    }
+
+    @Bean
+    public AuthenticationManager authManager(UserDetailsService userDetailsService, PasswordEncoder passwordEncoder) {
         var authProvider = new DaoAuthenticationProvider();
         authProvider.setUserDetailsService(userDetailsService);
+        authProvider.setPasswordEncoder(passwordEncoder);
         return new ProviderManager(authProvider);
     }
 
@@ -72,18 +98,62 @@ public class SecurityConfig {
             );
     }
 
+    /**
+     * CORS Configuration
+     * Allows cross-origin requests from configured origins
+     * Origins can be configured via application.properties or environment variables
+     */
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+        
+        // Parse allowed origins from comma-separated string
+        List<String> origins = Arrays.asList(allowedOrigins.split(","));
+        configuration.setAllowedOrigins(origins);
+        
+        // Allow common HTTP methods
+        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        
+        // Allow common headers including Authorization
+        configuration.setAllowedHeaders(Arrays.asList(
+            HttpHeaders.AUTHORIZATION,
+            HttpHeaders.CONTENT_TYPE,
+            HttpHeaders.ACCEPT,
+            "X-Requested-With"
+        ));
+        
+        // Allow credentials (cookies, authorization headers)
+        configuration.setAllowCredentials(true);
+        
+        // Cache preflight response for 1 hour
+        configuration.setMaxAge(3600L);
+        
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+        
+        log.info("CORS configured with allowed origins: {}", origins);
+        
+        return source;
+    }
+
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        // Disable CSRF for stateless API
         http.csrf(AbstractHttpConfigurer::disable);
 
+        // Enable CORS with our configuration
+        http.cors(cors -> cors.configurationSource(corsConfigurationSource()));
+
+        // Stateless session management (JWT-based)
         http.sessionManagement(c -> c.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
 
+        // Configure authorization rules
         http.authorizeHttpRequests(authorizeHttpRequests ->
             authorizeHttpRequests
                 .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
                 // allow login
                 .requestMatchers("/api/login/**").permitAll()
-//                // allow access to graphiql
+                // allow access to graphiql
                 .requestMatchers("/").permitAll()
                 .requestMatchers("/favicon.ico").permitAll()
                 .requestMatchers("/index.html").permitAll()
@@ -93,15 +163,23 @@ public class SecurityConfig {
                 .anyRequest().authenticated()
         );
 
+        // Configure OAuth2 Resource Server with JWT
         http.oauth2ResourceServer(c -> c.jwt(Customizer.withDefaults()));
 
         return http.build();
     }
 
+    /**
+     * Bearer Token Resolver
+     * SECURITY FIX: Disabled token in URL parameters to prevent token leakage in logs
+     * Tokens must now be sent in the Authorization header only
+     */
     @Bean
     BearerTokenResolver bearerTokenResolver() {
         DefaultBearerTokenResolver bearerTokenResolver = new DefaultBearerTokenResolver();
-        bearerTokenResolver.setAllowUriQueryParameter(true);
+        // SECURITY: Disable token in URL parameters to prevent logging/exposure
+        bearerTokenResolver.setAllowUriQueryParameter(false);
+        log.info("Bearer token resolver configured - URL parameter tokens DISABLED for security");
         return bearerTokenResolver;
     }
 
