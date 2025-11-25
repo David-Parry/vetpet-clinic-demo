@@ -18,3 +18,4 @@ npm-debug.log
 dist/
 
 frontend/.eslintcache
+.dccache
