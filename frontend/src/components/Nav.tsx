@@ -163,6 +163,45 @@ export function DefaultNavBar() {
   );
 }
 
+/**
+ * Validates that a URL is safe to use for fetching profile images.
+ * 
+ * Security rationale:
+ * - Prevents DOM-based XSS by ensuring only trusted URLs are fetched
+ * - Validates URL scheme (https: for production, http: allowed for dev)
+ * - Validates URL host matches current origin or trusted backend hosts
+ * - Fails closed: returns false for any invalid or untrusted URL
+ * 
+ * @param url - The URL to validate
+ * @returns true if the URL is trusted and safe to fetch, false otherwise
+ */
+function isTrustedImageUrl(url: string): boolean {
+  try {
+    // Parse the URL relative to the current origin to handle relative URLs correctly
+    const parsedUrl = new URL(url, window.location.origin);
+    
+    // Allow https: for production, http: for local development
+    const allowedProtocols = ['https:', 'http:'];
+    if (!allowedProtocols.includes(parsedUrl.protocol)) {
+      console.warn(`Untrusted URL protocol: ${parsedUrl.protocol}`);
+      return false;
+    }
+    
+    // Only allow URLs from the current host (same-origin policy)
+    // This prevents fetching from arbitrary external domains
+    if (parsedUrl.host !== window.location.host) {
+      console.warn(`Untrusted URL host: ${parsedUrl.host} (expected: ${window.location.host})`);
+      return false;
+    }
+    
+    return true;
+  } catch (error) {
+    // Invalid URL format
+    console.warn(`Invalid URL format: ${url}`, error);
+    return false;
+  }
+}
+
 type ProfileImageProps = {
   url: string;
   alt: string;
@@ -176,6 +215,13 @@ function ProfileImage({ url, alt }: ProfileImageProps) {
       setImageData(null);
       return;
     }
+    
+    // Security check: Validate URL before fetching to prevent DOM-based XSS
+    if (!isTrustedImageUrl(url)) {
+      setImageData(null);
+      return;
+    }
+    
     const reader = new FileReader();
 
     fetch(url, {
