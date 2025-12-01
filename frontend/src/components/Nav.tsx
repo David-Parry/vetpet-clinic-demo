@@ -163,45 +163,99 @@ export function DefaultNavBar() {
   );
 }
 
+/**
+ * Validates that an image source URL is safe to use in an img tag.
+ * Prevents DOM-based XSS by rejecting dangerous schemes like javascript:
+ * 
+ * @param src - The image source URL to validate
+ * @returns true if the source is safe, false otherwise
+ */
+function isSafeImageSrc(src: string): boolean {
+  const normalized = src.trim().toLowerCase();
+
+  // Reject javascript: or other obviously dangerous schemes
+  if (normalized.startsWith("javascript:")) {
+    return false;
+  }
+
+  // Allow blob URLs created by the app
+  if (normalized.startsWith("blob:")) {
+    return true;
+  }
+
+  // Allow data URLs strictly for image data
+  if (normalized.startsWith("data:image/")) {
+    return true;
+  }
+
+  // Reject all other schemes
+  return false;
+}
+
 type ProfileImageProps = {
   url: string;
   alt: string;
 };
 function ProfileImage({ url, alt }: ProfileImageProps) {
   const [token] = useAuthToken();
-  const [imageData, setImageData] = useState<string | null>(null);
+  const [imageSrc, setImageSrc] = useState<string | null>(null);
 
   useEffect(() => {
     if (!token) {
-      setImageData(null);
+      setImageSrc(null);
       return;
     }
-    const reader = new FileReader();
 
-    fetch(url, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    })
-      .then((res) => res.blob())
-      .then(
-        (blob) =>
-          new Promise((resolve, reject) => {
-            reader.onload = resolve;
-            reader.onerror = reject;
-            reader.readAsDataURL(blob);
-          }),
-      )
-      .then((_) => reader.result)
-      .then((imageData) =>
-        typeof imageData === "string"
-          ? setImageData(imageData)
-          : setImageData(null),
-      );
+    let cancelled = false;
+    let objectUrl: string | null = null;
+
+    async function loadImage() {
+      try {
+        const res = await fetch(url, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (!res.ok) {
+          if (!cancelled) setImageSrc(null);
+          return;
+        }
+
+        // Validate content type is an image
+        const contentType = res.headers.get("content-type") || "";
+        if (!contentType.startsWith("image/")) {
+          if (!cancelled) setImageSrc(null);
+          return;
+        }
+
+        const blob = await res.blob();
+        objectUrl = URL.createObjectURL(blob);
+
+        // Validate the generated URL is safe before setting state
+        if (!cancelled && objectUrl && isSafeImageSrc(objectUrl)) {
+          setImageSrc(objectUrl);
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setImageSrc(null);
+        }
+      }
+    }
+
+    loadImage();
+
+    // Cleanup: revoke the object URL when component unmounts or dependencies change
+    return () => {
+      cancelled = true;
+      if (objectUrl) {
+        URL.revokeObjectURL(objectUrl);
+      }
+    };
   }, [token, url]);
 
-  if (imageData) {
-    return <img src={imageData} className="h-8 w-8 rounded-full" alt={alt} />;
+  if (imageSrc) {
+    return <img src={imageSrc} className="h-8 w-8 rounded-full" alt={alt} />;
   }
 
   return null;
