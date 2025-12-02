@@ -336,3 +336,232 @@ But if you want to develop and run the tests in IntelliJ, you can install the [T
 If you like to help and contribute you're more than welcome! Please open [an issue](https://github.com/spring-petclinic/spring-petclinic-graphql/issues) or a [Pull Request](https://github.com/spring-petclinic/spring-petclinic-graphql/pulls)
 
 Initial implementation of this GraphQL-based PetClinic example: [Nils Hartmann](https://nilshartmann.net), [Twitter](https://twitter.com/nilshartmann) 
+
+# Snyk Code: Local Security Scans
+
+This section describes how to run **Snyk Code** static application security testing (SAST) on the PetClinic repository from the command line. Snyk Code analyzes source code across all modules to identify security vulnerabilities, code quality issues, and potential bugs.
+
+## Prerequisites: Snyk CLI and Authentication
+
+### 1. Install Node.js
+
+If you don't already have Node.js installed (required for the frontend and e2e-tests), download and install it from [nodejs.org](https://nodejs.org/).
+
+### 2. Install Snyk CLI
+
+Install the Snyk CLI globally using npm or pnpm:
+
+```bash
+# Using npm
+npm install -g snyk
+
+# Using pnpm
+pnpm add -g snyk
+
+# Verify installation
+snyk --version
+```
+
+### 3. Obtain a Snyk API Token
+
+1. Sign up for a free account at [app.snyk.io](https://app.snyk.io/)
+2. Navigate to your account settings
+3. Generate an API token from the "General" section
+4. Copy the token for the next step
+
+### 4. Configure Authentication
+
+Export the `SNYK_TOKEN` environment variable in your shell:
+
+**For bash/zsh (Linux/macOS):**
+```bash
+export SNYK_TOKEN="your-snyk-api-token-here"
+
+# To make it permanent, add to ~/.bashrc or ~/.zshrc:
+echo 'export SNYK_TOKEN="your-snyk-api-token-here"' >> ~/.bashrc
+source ~/.bashrc
+```
+
+**For PowerShell (Windows):**
+```powershell
+$env:SNYK_TOKEN="your-snyk-api-token-here"
+
+# To make it permanent:
+[System.Environment]::SetEnvironmentVariable('SNYK_TOKEN', 'your-snyk-api-token-here', 'User')
+```
+
+**Alternatively, authenticate interactively:**
+```bash
+snyk auth
+```
+
+This will open a browser window for you to authenticate with your Snyk account.
+
+## Running Snyk Code Scans
+
+### Full Repository Scan (Recommended)
+
+To scan all modules in the repository with a single command, run from the repository root:
+
+```bash
+snyk code test --all-projects
+```
+
+**What this does:**
+- Auto-detects all Maven projects (`pom.xml` files in root, backend, frontend, petclinic-graphiql, e2e-tests)
+- Auto-detects all Node.js projects (`package.json` files in frontend, petclinic-graphiql, e2e-tests)
+- Analyzes Java source code in the backend module
+- Analyzes TypeScript/JavaScript code in frontend modules
+- Analyzes Playwright test code in e2e-tests
+- Reports all identified security issues and code quality problems
+
+**Exit codes:**
+- `0`: No issues found
+- `1`: Issues found (vulnerabilities or code quality problems)
+- `2`: Command failed (authentication, network, or configuration error)
+
+### Module-Specific Scans
+
+If you want to focus on a specific module, you can run Snyk Code from within that module's directory:
+
+#### Backend Only (Spring Boot, Maven)
+```bash
+cd backend
+snyk code test
+```
+
+This scans only the Java source code in the backend module.
+
+#### Frontend App Only (Vite + React + TypeScript)
+```bash
+cd frontend
+snyk code test
+```
+
+This scans only the TypeScript/JavaScript code in the frontend module.
+
+#### Petclinic GraphiQL App Only
+```bash
+cd petclinic-graphiql
+snyk code test
+```
+
+This scans only the customized GraphiQL application code.
+
+#### E2E Tests Only (Playwright)
+```bash
+cd e2e-tests
+snyk code test
+```
+
+This scans the Playwright test code and helper utilities.
+
+## Generating Report Files
+
+By default, Snyk Code displays results in the terminal. You can also generate machine-readable report files for further analysis or archival:
+
+### JSON Output
+```bash
+# From repository root - JSON output for all projects
+snyk code test --all-projects --json-file-output=.snyk-code-report.json
+```
+
+### SARIF Output
+```bash
+# From repository root - SARIF output for all projects
+snyk code test --all-projects --sarif-file-output=.snyk-code-report.sarif
+```
+
+**Note:** These report files are **not committed** to the repository (they should be added to `.gitignore` if you generate them regularly). They are intended for local inspection, manual upload to security dashboards, or integration with other tools.
+
+### Uploading SARIF to GitHub Code Scanning (Optional)
+
+If you want to integrate Snyk Code results with GitHub's Security tab, you can manually upload the SARIF file:
+
+1. Generate the SARIF report as shown above
+2. Go to your GitHub repository → Security → Code scanning alerts
+3. Click "Upload SARIF" and select the `.snyk-code-report.sarif` file
+
+## Understanding Snyk Code Results
+
+When Snyk Code finds issues, it displays:
+
+- **Severity**: Critical, High, Medium, or Low
+- **Issue Type**: Security vulnerability, code quality issue, or best practice violation
+- **File and Line Number**: Exact location of the issue
+- **Description**: What the issue is and why it matters
+- **Remediation Advice**: How to fix the issue
+- **Example Fix**: Code snippets showing the recommended fix
+
+### Example Output
+
+```
+Testing /path/to/vetpet-clinic-demo...
+
+✗ [High] SQL Injection
+  Path: backend/src/main/java/org/springframework/samples/petclinic/owner/OwnerRepository.java, line 42
+  Info: Unsanitized input from user flows into SQL query
+  
+  Remediation: Use parameterized queries or prepared statements
+  
+  Example:
+    - String query = "SELECT * FROM owners WHERE name = '" + userInput + "'";
+    + PreparedStatement stmt = conn.prepareStatement("SELECT * FROM owners WHERE name = ?");
+    + stmt.setString(1, userInput);
+
+✗ [Medium] Cross-Site Scripting (XSS)
+  Path: frontend/src/components/OwnerPage.tsx, line 87
+  Info: User-controlled data rendered without sanitization
+  
+  Remediation: Sanitize user input before rendering in the DOM
+```
+
+## Using Snyk Code in Development Workflows
+
+### Pre-Commit Checks (Optional)
+
+You can integrate Snyk Code into your local development workflow by running scans before committing:
+
+```bash
+# Add to a pre-commit hook or run manually before commits
+snyk code test --all-projects
+```
+
+If issues are found (exit code 1), review and fix them before committing.
+
+### CI/CD Integration (Future Enhancement)
+
+While this documentation focuses on local command-line usage, Snyk Code can also be integrated into CI/CD pipelines (GitHub Actions, GitLab CI, Jenkins, etc.) for automated security scanning on every push or pull request.
+
+## Troubleshooting
+
+### "Authentication failed" error
+- Verify that `SNYK_TOKEN` is set correctly: `echo $SNYK_TOKEN` (bash/zsh) or `echo $env:SNYK_TOKEN` (PowerShell)
+- Try running `snyk auth` to authenticate interactively
+- Check that your token is valid at [app.snyk.io](https://app.snyk.io/)
+
+### "No supported projects found" error
+- Ensure you're running the command from the repository root or a module directory
+- Verify that `pom.xml` or `package.json` files exist in the expected locations
+- Try running `snyk code test` without `--all-projects` from a specific module directory
+
+### Slow scan performance
+- Snyk Code scans can take several minutes for large codebases
+- Use module-specific scans to focus on areas you're actively working on
+- Ensure you have a stable internet connection (Snyk analyzes code in the cloud)
+
+### Rate limiting
+- Free Snyk accounts have usage limits
+- If you hit rate limits, wait a few minutes or upgrade to a paid plan
+- Check your usage at [app.snyk.io](https://app.snyk.io/)
+
+## Additional Resources
+
+- [Snyk Code Documentation](https://docs.snyk.io/products/snyk-code)
+- [Snyk CLI Documentation](https://docs.snyk.io/snyk-cli)
+- [Snyk Code Language Support](https://docs.snyk.io/products/snyk-code/snyk-code-language-and-framework-support)
+- [Snyk Community Forum](https://community.snyk.io/)
+
+---
+
+For questions or issues with Snyk Code integration, please open an issue in this repository or consult the Snyk documentation.
