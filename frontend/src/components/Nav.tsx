@@ -163,6 +163,32 @@ export function DefaultNavBar() {
   );
 }
 
+/**
+ * Validates that a data URL is a safe image type to prevent DOM-based XSS attacks.
+ * 
+ * This function enforces a strict allowlist of safe image MIME types to prevent
+ * malicious data URLs (e.g., data:text/html or data:text/javascript) from being
+ * rendered in img src attributes.
+ * 
+ * @param dataUrl - The data URL string to validate
+ * @returns true if the data URL is a safe image type, false otherwise
+ * 
+ * @security This is a defense-in-depth measure against DOM-based XSS. While the
+ * server should enforce Content-Type headers, client-side validation provides
+ * additional protection.
+ */
+function isSafeImageDataUrl(dataUrl: string): boolean {
+  if (!dataUrl.startsWith('data:image/')) {
+    return false;
+  }
+  
+  // Extract MIME type (e.g., "image/png" from "data:image/png;base64,...")
+  const mimeMatch = dataUrl.match(/^data:(image\/[^;,]+)/);
+  const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'image/webp'];
+  
+  return mimeMatch !== null && allowedTypes.includes(mimeMatch[1]);
+}
+
 type ProfileImageProps = {
   url: string;
   alt: string;
@@ -193,11 +219,23 @@ function ProfileImage({ url, alt }: ProfileImageProps) {
           }),
       )
       .then((_) => reader.result)
-      .then((imageData) =>
-        typeof imageData === "string"
-          ? setImageData(imageData)
-          : setImageData(null),
-      );
+      .then((imageData) => {
+        if (typeof imageData === "string") {
+          // Validate that the data URL is a safe image type
+          if (isSafeImageDataUrl(imageData)) {
+            setImageData(imageData);
+          } else {
+            console.warn('Rejected unsafe data URL - not a valid image type');
+            setImageData(null);
+          }
+        } else {
+          setImageData(null);
+        }
+      })
+      .catch((error) => {
+        console.error('Failed to load profile image:', error);
+        setImageData(null);
+      });
   }, [token, url]);
 
   if (imageData) {

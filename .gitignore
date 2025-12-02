@@ -18,3 +18,6 @@ npm-debug.log
 dist/
 
 frontend/.eslintcache
+
+# Snyk security scan results (local analysis only)
+snyk-code-results*.json
