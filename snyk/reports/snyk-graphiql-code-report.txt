@@ -1,0 +1,19 @@
+
+Testing /home/spring/20251203_32f97183-adac-4b68-afda-316f7d54be83/vetpet-clinic-demo/petclinic-graphiql ...
+
+
+╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ Test Summary                                                                                                             │
+│                                                                                                                          │
+│   Organization:      qodo-proserv-partner                                                                                │
+│   Test type:         Static code analysis                                                                                │
+│   Project path:      /home/spring/20251203_32f97183-adac-4b68-afda-316f7d54be83/vetpet-clinic-demo/petclinic-graphiql    │
+│                                                                                                                          │
+│   Total issues:   0                                                                                                      │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+    
+💡 Tip
+
+   To view ignored issues, use the --include-ignores option.
+                                                            
+
