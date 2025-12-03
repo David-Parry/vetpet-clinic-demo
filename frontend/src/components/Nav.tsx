@@ -167,42 +167,107 @@ type ProfileImageProps = {
   url: string;
   alt: string;
 };
+
+/**
+ * Helper function to validate if a blob is a safe image type
+ * Prevents DOM-based XSS by ensuring only image MIME types are rendered
+ */
+function isSafeImage(blob: Blob): boolean {
+  return blob.type.startsWith("image/");
+}
+
+/**
+ * ProfileImage component with XSS protection
+ * - Validates MIME type before rendering
+ * - Uses object URLs instead of Base64 for better security
+ * - Properly cleans up object URLs to prevent memory leaks
+ * - Provides fallback avatar for invalid content
+ */
 function ProfileImage({ url, alt }: ProfileImageProps) {
   const [token] = useAuthToken();
-  const [imageData, setImageData] = useState<string | null>(null);
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [showFallback, setShowFallback] = useState(false);
 
   useEffect(() => {
+    // Reset state when token or url changes
     if (!token) {
-      setImageData(null);
+      setImageUrl(null);
+      setShowFallback(false);
       return;
     }
-    const reader = new FileReader();
 
-    fetch(url, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    })
-      .then((res) => res.blob())
-      .then(
-        (blob) =>
-          new Promise((resolve, reject) => {
-            reader.onload = resolve;
-            reader.onerror = reject;
-            reader.readAsDataURL(blob);
-          }),
-      )
-      .then((_) => reader.result)
-      .then((imageData) =>
-        typeof imageData === "string"
-          ? setImageData(imageData)
-          : setImageData(null),
-      );
+    let objectUrl: string | null = null;
+
+    // Fetch and validate image
+    const loadImage = async () => {
+      try {
+        const response = await fetch(url, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (!response.ok) {
+          console.warn(`Failed to fetch profile image: ${response.status}`);
+          setShowFallback(true);
+          return;
+        }
+
+        const blob = await response.blob();
+
+        // CRITICAL: Validate MIME type to prevent XSS
+        if (!isSafeImage(blob)) {
+          console.error(
+            `Invalid image MIME type: ${blob.type}. Only image/* types are allowed.`,
+          );
+          setShowFallback(true);
+          return;
+        }
+
+        // Create safe object URL
+        objectUrl = URL.createObjectURL(blob);
+        setImageUrl(objectUrl);
+        setShowFallback(false);
+      } catch (error) {
+        console.error("Error loading profile image:", error);
+        setShowFallback(true);
+      }
+    };
+
+    loadImage();
+
+    // Cleanup: Revoke object URL to prevent memory leaks
+    return () => {
+      if (objectUrl) {
+        URL.revokeObjectURL(objectUrl);
+      }
+    };
   }, [token, url]);
 
-  if (imageData) {
-    return <img src={imageData} className="h-8 w-8 rounded-full" alt={alt} />;
+  // Render validated image
+  if (imageUrl && !showFallback) {
+    return <img src={imageUrl} className="h-8 w-8 rounded-full" alt={alt} />;
   }
 
+  // Fallback avatar with user initials
+  if (showFallback) {
+    // Extract initials from alt text (e.g., "Profile image of john" -> "J")
+    const initials = alt
+      .split(" ")
+      .slice(-1)[0]
+      ?.charAt(0)
+      .toUpperCase() || "?";
+    
+    return (
+      <div
+        className="flex h-8 w-8 items-center justify-center rounded-full bg-spr-green text-white font-bold text-sm"
+        title={alt}
+      >
+        {initials}
+      </div>
+    );
+  }
+
+  // Loading state (no image yet)
   return null;
 }
