@@ -11,8 +11,8 @@
     "preview": "tsc && vite build && vite preview"
   },
   "dependencies": {
-    "@graphiql/toolkit": "^0.9.1",
-    "graphiql": "^3.0.6",
+    "@graphiql/toolkit": "^0.10.0",
+    "graphiql": "^5.0.0",
     "graphql": "^16.8.1",
     "graphql-ws": "^5.14.1",
     "react": "^18.2.0",

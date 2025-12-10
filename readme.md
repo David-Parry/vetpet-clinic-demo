@@ -336,3 +336,41 @@ But if you want to develop and run the tests in IntelliJ, you can install the [T
 If you like to help and contribute you're more than welcome! Please open [an issue](https://github.com/spring-petclinic/spring-petclinic-graphql/issues) or a [Pull Request](https://github.com/spring-petclinic/spring-petclinic-graphql/pulls)
 
 Initial implementation of this GraphQL-based PetClinic example: [Nils Hartmann](https://nilshartmann.net), [Twitter](https://twitter.com/nilshartmann) 
+
+# Security Scans
+
+This project uses [Snyk](https://snyk.io/) to scan for security vulnerabilities in dependencies.
+
+## Running Snyk Scans
+
+To scan all projects in the repository:
+
+```bash
+snyk test --all-projects
+```
+
+To scan a specific module (e.g., the GraphiQL frontend):
+
+```bash
+cd petclinic-graphiql
+snyk test
+```
+
+## Recent Vulnerability Remediation
+
+**Issue**: High-severity infinite loop vulnerability in `markdown-it` (SNYK-JS-MARKDOWNIT-6483324)
+- **Affected Module**: `petclinic-graphiql`
+- **Dependency Chain**: `graphiql@3.0.6` → `codemirror@5.65.15` → `markdown-it@12.3.2`
+- **Resolution**: Upgraded `graphiql` from `^3.0.6` to `^5.0.0` and `@graphiql/toolkit` from `^0.9.1` to `^0.10.0`
+- **Status**: ✅ Resolved - No known vulnerabilities as of December 2025
+- **Verification**: Run `snyk test` in `petclinic-graphiql` directory to confirm
+
+After upgrading dependencies, always rebuild the GraphiQL assets and copy them to the backend:
+
+```bash
+cd petclinic-graphiql
+pnpm install
+pnpm build
+pnpm copy-to-backend
+```
+
