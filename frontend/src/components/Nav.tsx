@@ -87,7 +87,7 @@ export function DefaultNavBar() {
                     >
                       <span className="sr-only">Open user menu</span>
                       <ProfileImage
-                        url={`/images/${username}.png`}
+                        username={username}
                         alt={`Profile image of ${username}`}
                       />
                     </button>
@@ -164,44 +164,105 @@ export function DefaultNavBar() {
 }
 
 type ProfileImageProps = {
-  url: string;
+  username: string;
   alt: string;
 };
-function ProfileImage({ url, alt }: ProfileImageProps) {
+
+/**
+ * Sanitizes username to prevent path traversal and injection attacks
+ * Only allows alphanumeric characters, hyphens, and underscores
+ */
+function sanitizeUsername(username: string): string | null {
+  // Only allow alphanumeric characters, hyphens, and underscores
+  const validUsernamePattern = /^[a-zA-Z0-9_-]+$/;
+  if (!validUsernamePattern.test(username)) {
+    console.error('Invalid username format:', username);
+    return null;
+  }
+  return username;
+}
+
+/**
+ * Validates that the response is actually an image
+ */
+function isValidImageContentType(contentType: string | null): boolean {
+  if (!contentType) {
+    return false;
+  }
+  // Only allow image content types
+  return contentType.startsWith('image/');
+}
+
+function ProfileImage({ username, alt }: ProfileImageProps) {
   const [token] = useAuthToken();
-  const [imageData, setImageData] = useState<string | null>(null);
+  const [validatedImageData, setValidatedImageData] = useState<string | null>(null);
 
   useEffect(() => {
+    // Reset state
+    setValidatedImageData(null);
+
     if (!token) {
-      setImageData(null);
       return;
     }
+
+    // Security: Sanitize username before using in URL construction
+    const sanitizedUsername = sanitizeUsername(username);
+    if (!sanitizedUsername) {
+      console.error('Username validation failed');
+      return;
+    }
+
+    // Construct safe URL using sanitized username
+    const safeUrl = `/images/${sanitizedUsername}.png`;
     const reader = new FileReader();
 
-    fetch(url, {
+    fetch(safeUrl, {
       headers: {
         Authorization: `Bearer ${token}`,
       },
     })
-      .then((res) => res.blob())
+      .then((res) => {
+        // Security: Validate Content-Type header
+        const contentType = res.headers.get('Content-Type');
+        if (!isValidImageContentType(contentType)) {
+          throw new Error(`Invalid content type: ${contentType}`);
+        }
+        return res.blob();
+      })
       .then(
-        (blob) =>
-          new Promise((resolve, reject) => {
-            reader.onload = resolve;
+        (blob) => {
+          // Security: Verify blob type is an image
+          if (!blob.type.startsWith('image/')) {
+            throw new Error(`Invalid blob type: ${blob.type}`);
+          }
+          return new Promise<void>((resolve, reject) => {
+            reader.onload = () => resolve();
             reader.onerror = reject;
             reader.readAsDataURL(blob);
-          }),
+          });
+        },
       )
-      .then((_) => reader.result)
-      .then((imageData) =>
-        typeof imageData === "string"
-          ? setImageData(imageData)
-          : setImageData(null),
-      );
-  }, [token, url]);
+      .then(() => {
+        const result = reader.result;
+        // Security: Only set validated image data if it's a string and starts with data:image
+        if (typeof result === "string" && result.startsWith("data:image/")) {
+          setValidatedImageData(result);
+        } else {
+          console.error('Invalid image data format');
+          setValidatedImageData(null);
+        }
+      })
+      .catch((error) => {
+        // Security: Log error but don't expose details to user
+        console.error('Failed to load profile image:', error);
+        setValidatedImageData(null);
+      });
+  }, [token, username]);
 
-  if (imageData) {
-    return <img src={imageData} className="h-8 w-8 rounded-full" alt={alt} />;
+  if (validatedImageData) {
+    // Security: validatedImageData has been sanitized and validated
+    // It only contains data URLs that start with "data:image/"
+    return <img src={validatedImageData} className="h-8 w-8 rounded-full" alt={alt} />;
   }
 
   return null;
