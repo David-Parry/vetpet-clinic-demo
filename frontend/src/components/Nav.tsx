@@ -163,19 +163,45 @@ export function DefaultNavBar() {
   );
 }
 
+/**
+ * Validates that a data URL is a safe image source
+ * @param dataUrl - The data URL to validate
+ * @returns true if the data URL is safe to use as an image source
+ */
+function isSafeImageSrc(dataUrl: string): boolean {
+  if (!dataUrl || typeof dataUrl !== "string") {
+    return false;
+  }
+
+  // Only allow data URLs that start with data:image/
+  // This prevents XSS attacks via data:text/html or other malicious MIME types
+  const safeImagePattern = /^data:image\/(png|jpeg|jpg|gif|webp|svg\+xml);base64,/i;
+  return safeImagePattern.test(dataUrl);
+}
+
+type ImageLoadState = 
+  | { status: "loading" }
+  | { status: "ready"; value: string }
+  | { status: "error" };
+
 type ProfileImageProps = {
   url: string;
   alt: string;
 };
 function ProfileImage({ url, alt }: ProfileImageProps) {
   const [token] = useAuthToken();
-  const [imageData, setImageData] = useState<string | null>(null);
+  const [imageState, setImageState] = useState<ImageLoadState>({ 
+    status: "loading" 
+  });
 
   useEffect(() => {
     if (!token) {
-      setImageData(null);
+      setImageState({ status: "error" });
       return;
     }
+
+    setImageState({ status: "loading" });
+
     const reader = new FileReader();
 
     fetch(url, {
@@ -183,26 +209,77 @@ function ProfileImage({ url, alt }: ProfileImageProps) {
         Authorization: `Bearer ${token}`,
       },
     })
-      .then((res) => res.blob())
+      .then((res) => {
+        // Validate response content type
+        const contentType = res.headers.get("content-type");
+        if (!contentType || !contentType.startsWith("image/")) {
+          console.warn(
+            `ProfileImage: Invalid content type "${contentType}" for ${url}. Expected image/*`
+          );
+          setImageState({ status: "error" });
+          return Promise.reject(new Error("Invalid content type"));
+        }
+        return res.blob();
+      })
       .then(
         (blob) =>
-          new Promise((resolve, reject) => {
-            reader.onload = resolve;
-            reader.onerror = reject;
+          new Promise<string>((resolve, reject) => {
+            reader.onload = () => {
+              if (typeof reader.result === "string") {
+                resolve(reader.result);
+              } else {
+                reject(new Error("Failed to read blob as data URL"));
+              }
+            };
+            reader.onerror = () => reject(reader.error);
             reader.readAsDataURL(blob);
           }),
       )
-      .then((_) => reader.result)
-      .then((imageData) =>
-        typeof imageData === "string"
-          ? setImageData(imageData)
-          : setImageData(null),
-      );
+      .then((imageData) => {
+        // Validate the data URL before setting it in state
+        if (isSafeImageSrc(imageData)) {
+          setImageState({ status: "ready", value: imageData });
+        } else {
+          console.warn(
+            `ProfileImage: Unsafe image data URL detected for ${url}. Skipping render.`
+          );
+          setImageState({ status: "error" });
+        }
+      })
+      .catch((error) => {
+        console.error(`ProfileImage: Failed to load image from ${url}:`, error);
+        setImageState({ status: "error" });
+      });
   }, [token, url]);
 
-  if (imageData) {
-    return <img src={imageData} className="h-8 w-8 rounded-full" alt={alt} />;
+  // Render based on state
+  if (imageState.status === "ready") {
+    return (
+      <img 
+        src={imageState.value} 
+        className="h-8 w-8 rounded-full" 
+        alt={alt} 
+      />
+    );
   }
 
-  return null;
+  if (imageState.status === "loading") {
+    // Loading skeleton
+    return (
+      <div 
+        className="h-8 w-8 rounded-full bg-gray-300 animate-pulse" 
+        aria-label="Loading profile image"
+      />
+    );
+  }
+
+  // Error state - show default avatar placeholder
+  return (
+    <div 
+      className="h-8 w-8 rounded-full bg-spr-green-light flex items-center justify-center text-spr-black font-bold text-sm"
+      aria-label="Default profile avatar"
+    >
+      {alt.charAt(0).toUpperCase()}
+    </div>
+  );
 }
