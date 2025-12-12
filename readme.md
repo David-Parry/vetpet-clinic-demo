@@ -336,3 +336,81 @@ But if you want to develop and run the tests in IntelliJ, you can install the [T
 If you like to help and contribute you're more than welcome! Please open [an issue](https://github.com/spring-petclinic/spring-petclinic-graphql/issues) or a [Pull Request](https://github.com/spring-petclinic/spring-petclinic-graphql/pulls)
 
 Initial implementation of this GraphQL-based PetClinic example: [Nils Hartmann](https://nilshartmann.net), [Twitter](https://twitter.com/nilshartmann) 
+
+## Security Testing with Snyk
+
+This project uses [Snyk Code](https://snyk.io/product/snyk-code/) for static application security testing (SAST) to identify and remediate security vulnerabilities in the codebase.
+
+### Prerequisites
+
+1. **Install Snyk CLI**:
+   ```bash
+   npm install -g snyk
+   ```
+
+2. **Authenticate with Snyk**:
+   ```bash
+   snyk auth
+   ```
+   This will open a browser window for you to log in to your Snyk account and authorize the CLI.
+
+### Running Snyk Code Tests
+
+To run a full Snyk Code security scan:
+
+```bash
+# Run test and display results in terminal
+snyk code test
+
+# Generate SARIF report for detailed analysis
+snyk code test --sarif > security-reports/snyk-code-$(date +%Y-%m-%d).sarif
+
+# Generate JSON report
+snyk code test --json > security-reports/snyk-code-$(date +%Y-%m-%d).json
+```
+
+### Interpreting Results
+
+Snyk Code will analyze your source code and report:
+
+- **Severity Levels**: Critical, High, Medium, Low
+- **Vulnerability Types**: XSS, SQL Injection, Path Traversal, etc.
+- **Code Flows**: Shows the data flow from source to sink
+- **Fix Examples**: Provides examples from open-source projects showing how similar issues were fixed
+- **Priority Score**: A score (0-1000) indicating the urgency of fixing the issue
+
+### Security Reports
+
+All Snyk security reports are stored in the `security-reports/` directory:
+
+- **SARIF Format**: Machine-readable format for integration with CI/CD and security tools
+- **Naming Convention**: `snyk-code-YYYY-MM-DD-{status}.sarif`
+- **Documentation**: See `security-reports/README.md` for detailed findings and remediation tracking
+
+### Automated Security Scanning
+
+For continuous security monitoring, consider integrating Snyk into your CI/CD pipeline:
+
+```yaml
+# Example GitHub Actions workflow
+- name: Run Snyk Code Test
+  run: |
+    npm install -g snyk
+    snyk auth ${{ secrets.SNYK_TOKEN }}
+    snyk code test --sarif > snyk-code-report.sarif
+```
+
+### Security Best Practices
+
+1. **Regular Scans**: Run Snyk Code tests before each release
+2. **Fix High-Priority Issues**: Address critical and high-severity vulnerabilities immediately
+3. **Track Remediation**: Update `security-reports/README.md` when vulnerabilities are fixed
+4. **Archive Reports**: Keep both pre-fix and post-fix reports for audit trails
+5. **Developer Training**: Review Snyk's fix examples to learn secure coding patterns
+
+### Additional Resources
+
+- [Snyk Code Documentation](https://docs.snyk.io/products/snyk-code)
+- [SARIF Format Specification](https://docs.oasis-open.org/sarif/sarif/v2.1.0/sarif-v2.1.0.html)
+- [OWASP Top 10](https://owasp.org/www-project-top-ten/)
+
