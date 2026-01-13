@@ -9,6 +9,9 @@ services:
       - POSTGRES_USER=klaus
       - POSTGRES_DB=petclinic_graphql_db
       - POSTGRES_INITDB_ARGS=--locale-provider=icu --icu-locale=en
+  
+  # Backend service - Spring Boot application
+  # Snyk scan: snyk container test spring-petclinic/petclinic-graphql-backend:0.0.1
   petclinic_graphql_backend:
     image: spring-petclinic/petclinic-graphql-backend:0.0.1
     container_name: petclinic_graphql_backend
@@ -20,6 +23,9 @@ services:
       - SPRING_DATASOURCE_PASSWORD=secretpw
     ports:
       - "3091:9977"
+  
+  # Frontend service - React/Vite application
+  # Snyk scan: snyk container test spring-petclinic/petclinic-graphql-frontend:0.0.1
   petclinic_graphql_frontend:
     image: spring-petclinic/petclinic-graphql-frontend:0.0.1
     container_name: petclinic_graphql_frontend
