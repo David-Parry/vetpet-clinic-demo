@@ -336,3 +336,169 @@ But if you want to develop and run the tests in IntelliJ, you can install the [T
 If you like to help and contribute you're more than welcome! Please open [an issue](https://github.com/spring-petclinic/spring-petclinic-graphql/issues) or a [Pull Request](https://github.com/spring-petclinic/spring-petclinic-graphql/pulls)
 
 Initial implementation of this GraphQL-based PetClinic example: [Nils Hartmann](https://nilshartmann.net), [Twitter](https://twitter.com/nilshartmann) 
+
+# Security Scanning with Snyk
+
+This project includes automated security scanning using [Snyk](https://snyk.io/) to identify vulnerabilities in dependencies and container images.
+
+## Prerequisites
+
+Before running Snyk scans, ensure you have:
+
+1. **Snyk CLI** installed:
+   ```bash
+   npm install -g snyk
+   ```
+
+2. **Snyk API Token**: Sign up at [snyk.io](https://snyk.io/) and get your API token from Account Settings
+
+3. **Required tools**:
+   - Java 21+ (for backend scanning)
+   - pnpm or npm (for frontend/e2e scanning)
+   - Docker (for container scanning)
+   - Node.js (for report aggregation)
+
+## Running Security Scans
+
+### Quick Start
+
+1. Set your Snyk API token:
+   ```bash
+   export SNYK_TOKEN=your-snyk-api-token-here
+   ```
+
+2. Run the comprehensive scan:
+   ```bash
+   ./scripts/run-snyk-scan.sh
+   ```
+
+3. Review the results:
+   ```bash
+   cat reports/snyk-summary.md
+   ```
+
+### What Gets Scanned
+
+The scan covers all project components:
+
+- **Backend** (Spring Boot/Maven): Dependencies and code vulnerabilities
+- **Frontend** (React/Vite): npm package vulnerabilities
+- **E2E Tests** (Playwright): Test framework dependencies
+- **Docker Containers**: Base images and runtime vulnerabilities
+
+### Scan Options
+
+Configure the scan behavior with environment variables:
+
+```bash
+# Set severity threshold (critical, high, medium, low)
+export SNYK_SEVERITY_THRESHOLD=high
+
+# Add additional Snyk flags
+export SNYK_ADDITIONAL_FLAGS="--policy-path=.snyk"
+
+# Run in dry-run mode (shows commands without executing)
+./scripts/run-snyk-scan.sh --dry-run
+```
+
+### Understanding the Reports
+
+After scanning, reports are generated in the `reports/` directory:
+
+- **snyk-summary.md**: Human-readable overview with severity breakdown
+- **snyk-summary.json**: Aggregated data for programmatic access
+- **[module]-snyk.json**: Detailed findings for each module
+
+#### Severity Levels
+
+- 🔴 **Critical**: Immediate action required - actively exploited vulnerabilities
+- 🟠 **High**: High priority - significant security risk
+- 🟡 **Medium**: Medium priority - moderate security risk
+- 🟢 **Low**: Low priority - minimal security risk
+
+### Fixing Vulnerabilities
+
+1. **Review fixable issues**: Check the summary for upgradable/patchable vulnerabilities
+
+2. **Update dependencies**:
+   ```bash
+   # Backend
+   cd backend && ../mvnw versions:use-latest-releases
+   
+   # Frontend
+   cd frontend && pnpm update
+   
+   # E2E tests
+   cd e2e-tests && npm update
+   ```
+
+3. **Re-run scans** to verify fixes:
+   ```bash
+   ./scripts/run-snyk-scan.sh
+   ```
+
+4. **For unfixable issues**:
+   - Assess the risk in your specific context
+   - Implement mitigations (input validation, WAF rules, etc.)
+   - Document accepted risks in `.snyk` policy file
+
+### Continuous Integration
+
+Integrate Snyk scanning into your CI/CD pipeline:
+
+```yaml
+# Example GitHub Actions workflow
+- name: Run Snyk Security Scan
+  env:
+    SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+  run: |
+    npm install -g snyk
+    ./scripts/run-snyk-scan.sh
+    
+- name: Upload Scan Results
+  uses: actions/upload-artifact@v3
+  with:
+    name: snyk-reports
+    path: reports/
+```
+
+### Troubleshooting
+
+**Authentication errors:**
+```bash
+# Verify token is set
+echo $SNYK_TOKEN
+
+# Re-authenticate
+snyk auth $SNYK_TOKEN
+```
+
+**Dependency installation timeouts:**
+```bash
+# Increase timeout for large projects
+export SNYK_ADDITIONAL_FLAGS="--timeout=600"
+```
+
+**Container scan failures:**
+```bash
+# Ensure images are built first
+docker-compose -f docker-compose-petclinic.yml build
+
+# Verify images exist
+docker images | grep petclinic
+```
+
+### Best Practices
+
+1. **Run scans regularly**: Weekly or before major releases
+2. **Prioritize critical/high**: Focus on severe vulnerabilities first
+3. **Keep dependencies updated**: Regular updates reduce vulnerability exposure
+4. **Monitor new vulnerabilities**: Subscribe to Snyk alerts for your projects
+5. **Document exceptions**: Use `.snyk` policy file for accepted risks
+
+### Additional Resources
+
+- [Snyk Documentation](https://docs.snyk.io/)
+- [Snyk CLI Reference](https://docs.snyk.io/snyk-cli)
+- [Vulnerability Database](https://security.snyk.io/)
+
